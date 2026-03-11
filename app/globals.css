@@ -1,0 +1,39 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg:       #f0ebe3;
+  --surface:  #e8e1d6;
+  --surface2: #ddd5c8;  
+  --border:   #c9bfb0;
+  --accent:   #c8a96e;
+  --accent2:  #8b5e3c;
+  --text:     #1a1510;
+  --muted:    #7a6f65;
+  --green:    #5a8a6e;
+  --font-heading: 'Cormorant Garamond', serif;
+  --font-body:    'DM Mono', monospace;
+}
+
+@theme inline {       
+  --color-background: var(--bg);
+  --color-foreground: var(--text);
+  --font-sans: var(--font-body);
+  --font-mono: var(--font-body);
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+/* Fix dropdown cho mọi nơi trong app */
+select, select option {
+  background-color: #ddd5c8;
+  color: #1a1510;
+}
