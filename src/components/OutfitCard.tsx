@@ -1,32 +1,51 @@
 'use client'
 
-import { Outfit } from '@/lib/types'
-import { CAT_COLORS } from '@/lib/constants'
+import type { Outfit } from '@/lib/types'
+import { getCategoryColor } from '@/lib/constants'
 
 interface OutfitCardProps {
   outfit: Outfit
-  rank?: number
   showScore?: boolean
+  selected?: boolean
+  onClick?: () => void
 }
 
-export default function OutfitCard({ outfit, rank, showScore }: OutfitCardProps) {
+export default function OutfitCard({ outfit, showScore, selected, onClick }: OutfitCardProps) {
+  const displayScore = outfit.score ?? outfit.similarity
+
   return (
     <div
-      className="rounded-xl p-4 border transition-all"
+      onClick={onClick}
+      className="rounded-xl p-4 border transition-all duration-150"
       style={{
-        backgroundColor: 'var(--surface)',
-        borderColor: 'var(--border)',
+        backgroundColor: selected ? 'rgba(200, 169, 110, 0.1)' : 'var(--surface)',
+        borderColor: selected ? 'var(--accent)' : 'var(--border)',
+        cursor: onClick ? 'pointer' : 'default',
+        transform: selected ? 'translateY(-2px)' : 'none',
+        boxShadow: selected ? '0 4px 16px rgba(200, 169, 110, 0.2)' : 'none',
+      }}
+      onMouseEnter={(e) => {
+        if (onClick && !selected) {
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent2)'
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-1px)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick && !selected) {
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'none'
+        }
       }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between mb-4 gap-2">
+      <div className="flex items-center justify-between mb-3 gap-2">
         <div>
-          {rank !== undefined && (
+          {outfit.rank !== undefined && (
             <div
-              className="text-xs font-semibold uppercase tracking-wider mb-1"
+              className="text-xs font-semibold uppercase tracking-wider mb-0.5"
               style={{ color: 'var(--muted)' }}
             >
-              #{rank}
+              #{outfit.rank}
             </div>
           )}
           <div
@@ -37,46 +56,34 @@ export default function OutfitCard({ outfit, rank, showScore }: OutfitCardProps)
           </div>
         </div>
 
-        {showScore && outfit.score !== undefined && (
+        {showScore && displayScore !== undefined && (
           <div
-            className="px-2 py-1 rounded text-xs font-semibold text-white"
-            style={{
-              backgroundColor: 'var(--green)',
-            }}
+            className="px-2 py-1 rounded text-xs font-semibold text-white shrink-0"
+            style={{ backgroundColor: 'var(--green)' }}
           >
-            {outfit.score.toFixed(3)}
+            {outfit.similarity !== undefined
+              ? `${(outfit.similarity * 100).toFixed(1)}%`
+              : displayScore.toFixed(3)}
           </div>
         )}
       </div>
 
-      {/* Item Chips */}
-      <div className="flex flex-wrap gap-2">
+      {/* Item chips */}
+      <div className="flex flex-wrap gap-1.5">
         {outfit.items.map((item) => {
-          const chipColor = CAT_COLORS[item.category] || '#888888'
-
+          const color = getCategoryColor(item.category)
           return (
             <div
               key={item.item_id}
-              className="px-3 py-1 rounded-full text-xs border-2 transition-all cursor-default"
+              className="px-2 py-0.5 rounded-full text-xs border"
               style={{
-                backgroundColor: `${chipColor}15`, // 15% opacity
-                borderColor: chipColor,
-                color: chipColor,
+                backgroundColor: `${color}18`,
+                borderColor: color,
+                color,
               }}
               title={item.title}
-              onMouseEnter={(e) => {
-                ;(e.currentTarget as HTMLDivElement).style.borderColor =
-                  'var(--accent2)'
-                ;(e.currentTarget as HTMLDivElement).style.boxShadow =
-                  `0 0 8px ${chipColor}`
-              }}
-              onMouseLeave={(e) => {
-                ;(e.currentTarget as HTMLDivElement).style.borderColor =
-                  chipColor
-                ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'none'
-              }}
             >
-              {item.category}
+              Cat.{item.category}
             </div>
           )
         })}

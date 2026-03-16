@@ -1,63 +1,55 @@
 'use client'
 
-import { User } from '@/lib/types'
+import type { User } from '@/lib/types'
 import UserCard from './UserCard'
 
 interface UserGridProps {
   users: User[]
-  selectedId: number | null
-  onSelect: (userId: number) => void
+  selectedId: string | null
+  onSelect: (userId: string) => void
+  loading?: boolean
 }
 
-export default function UserGrid({ users, selectedId, onSelect }: UserGridProps) {
-  const isLoading = users.length === 0
+export default function UserGrid({ users, selectedId, onSelect, loading }: UserGridProps) {
+  if (loading) {
+    return (
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+        {Array.from({ length: 18 }).map((_, i) => (
+          <div
+            key={i}
+            className="rounded-xl p-4 border animate-pulse"
+            style={{
+              backgroundColor: 'var(--surface)',
+              borderColor: 'var(--border)',
+              minHeight: '100px',
+            }}
+          />
+        ))}
+      </div>
+    )
+  }
+
+  if (users.length === 0) {
+    return (
+      <div
+        className="py-12 text-center rounded-xl"
+        style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
+      >
+        No users found
+      </div>
+    )
+  }
 
   return (
-    <div
-      className="grid gap-4"
-      style={{
-        gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))',
-      }}
-    >
-      {isLoading ? (
-        // Skeleton loading: 20 placeholder cards
-        Array.from({ length: 20 }).map((_, index) => (
-          <div
-            key={`skeleton-${index}`}
-            className="flex flex-col items-center gap-3 p-4 rounded-xl animate-pulse"
-            style={{
-              backgroundColor: 'var(--surface2)',
-              border: '2px solid var(--border)',
-              height: '140px',
-            }}
-          >
-            <div
-              className="w-12 h-12 rounded-full"
-              style={{ backgroundColor: 'var(--border)' }}
-            />
-            <div className="w-full space-y-2">
-              <div
-                className="h-2 rounded"
-                style={{ backgroundColor: 'var(--border)' }}
-              />
-              <div
-                className="h-2 rounded w-3/4 mx-auto"
-                style={{ backgroundColor: 'var(--border)' }}
-              />
-            </div>
-          </div>
-        ))
-      ) : (
-        // Actual user cards
-        users.map((user) => (
-          <UserCard
-            key={user.user_id}
-            user={user}
-            selected={selectedId === user.user_id}
-            onClick={onSelect}
-          />
-        ))
-      )}
+    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">
+      {users.map((user) => (
+        <UserCard
+          key={user.user_id}
+          user={user}
+          selected={selectedId === user.user_id}
+          onClick={onSelect}
+        />
+      ))}
     </div>
   )
 }

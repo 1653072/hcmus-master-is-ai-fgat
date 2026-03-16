@@ -1,70 +1,161 @@
 /**
- * Global TypeScript interfaces for H-HFGAT Fashion Recommendation
- * IMPORTANT: All types exported here, no 'any' allowed
+ * TypeScript interfaces for H-HFGAT Fashion Recommendation.
+ * All types mirror the actual BE (Python/Flask) response shapes exactly.
+ * IMPORTANT: All IDs are strings. Categories are integers.
  */
 
-/**
- * Individual fashion item
- */
+// ---------------------------------------------------------------------------
+// Core entities
+// ---------------------------------------------------------------------------
+
 export interface Item {
-  item_id: number
-  category: string
+  item_id: string
+  category: number
   title: string
   image_url?: string
   score?: number
+  compatibility_prob?: number
 }
 
-/**
- * Complete outfit containing multiple items
- */
 export interface Outfit {
-  outfit_id: number
+  outfit_id: string
+  rank?: number
   score?: number
+  similarity?: number
   items: Item[]
 }
 
-/**
- * User profile with outfit count
- */
 export interface User {
-  user_id: number
-  n_outfits: number
+  user_id: string
+  outfit_count: number
 }
 
-/**
- * Recommend API response
- */
-export interface RecommendResponse {
-  user_id: number
-  recommendations: Outfit[]
+// ---------------------------------------------------------------------------
+// Pagination meta (shared by all list endpoints)
+// ---------------------------------------------------------------------------
+
+export interface PaginatedMeta {
+  page: number
+  limit: number
+  total: number
+  total_pages: number
 }
 
-/**
- * History API response
- */
-export interface HistoryResponse {
-  user_id: number
-  history: Outfit[]
+// ---------------------------------------------------------------------------
+// GET /list-users
+// ---------------------------------------------------------------------------
+
+export interface UsersResponse extends PaginatedMeta {
+  users: User[]
 }
 
-/**
- * Items by category API response
- */
-export interface ItemsByCategoryResponse {
+// ---------------------------------------------------------------------------
+// GET /list-user-histories
+// ---------------------------------------------------------------------------
+
+export interface UserHistoryEntry {
+  outfit_id: string
   items: Item[]
 }
 
-/**
- * Fill-in-the-Blank API request body
- */
-export interface FitbRequest {
-  item_ids: number[]
-  target_category: string
+export interface UserHistoryResponse extends PaginatedMeta {
+  user_id: string
+  histories: UserHistoryEntry[]
 }
 
-/**
- * Fill-in-the-Blank API response
- */
-export interface FitbResponse {
-  results: Item[]
+// ---------------------------------------------------------------------------
+// GET /list-items
+// ---------------------------------------------------------------------------
+
+export interface ItemsResponse extends PaginatedMeta {
+  items: Item[]
+}
+
+// ---------------------------------------------------------------------------
+// GET /list-outfits
+// ---------------------------------------------------------------------------
+
+export interface OutfitEntry {
+  outfit_id: string
+  items: Item[]
+}
+
+export interface OutfitsResponse extends PaginatedMeta {
+  outfits: OutfitEntry[]
+}
+
+// ---------------------------------------------------------------------------
+// POST /recommend
+// ---------------------------------------------------------------------------
+
+export interface RecommendRequest {
+  user_id: string
+  top_k?: number
+  exclude_seen?: boolean
+}
+
+export interface RecommendedOutfit {
+  rank: number
+  outfit_id: string
+  score: number
+  items: Item[]
+}
+
+export interface RecommendResponse {
+  user_id: string
+  total: number
+  recommendations: RecommendedOutfit[]
+}
+
+// ---------------------------------------------------------------------------
+// POST /suggest-outfit-compatibility
+// ---------------------------------------------------------------------------
+
+export interface CompatibilityRequest {
+  item_ids: string[]
+  suggest_top_k?: number
+}
+
+export interface CompatibilityResult {
+  raw_score: number
+  compatibility_prob: number
+  label: string
+  valid_items: Item[]
+}
+
+export interface CompatibilityResponse {
+  compatibility: CompatibilityResult
+  suggested_items: Item[]
+}
+
+// ---------------------------------------------------------------------------
+// POST /similar-outfits
+// ---------------------------------------------------------------------------
+
+export interface SimilarOutfitsRequest {
+  outfit_id: string
+  top_k?: number
+}
+
+export interface SimilarOutfitEntry {
+  rank: number
+  outfit_id: string
+  similarity: number
+  items: Item[]
+}
+
+export interface SimilarOutfitsResponse {
+  outfit_id: string
+  outfit_items: Item[]
+  similar_outfits: SimilarOutfitEntry[]
+}
+
+// ---------------------------------------------------------------------------
+// GET /health
+// ---------------------------------------------------------------------------
+
+export interface HealthResponse {
+  status: string
+  model: string
+  artifacts_loaded: boolean
 }

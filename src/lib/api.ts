@@ -1,36 +1,42 @@
 /**
- * All API fetch functions for H-HFGAT Fashion Recommendation
- * IMPORTANT: All HTTP calls ONLY here, never in components
- * Uses native fetch(), no axios
+ * All HTTP fetch functions for H-HFGAT Fashion Recommendation.
+ * IMPORTANT: All API calls MUST go through this module — never call fetch() in components.
+ *
+ * Routing:
+ *   FE calls /api/*  →  next.config.ts rewrites to  BE_URL/*
+ *   e.g. /api/list-users  →  http://localhost:5000/list-users  (dev)
+ *        /api/recommend   →  https://app.onrender.com/recommend (prod)
  */
 
 import { API_BASE, API_TIMEOUT } from './constants'
-import {
-  User,
-  Outfit,
-  Item,
+import type {
+  UsersResponse,
+  UserHistoryResponse,
+  ItemsResponse,
+  OutfitsResponse,
+  RecommendRequest,
   RecommendResponse,
-  HistoryResponse,
-  ItemsByCategoryResponse,
-  FitbRequest,
-  FitbResponse,
+  CompatibilityRequest,
+  CompatibilityResponse,
+  SimilarOutfitsRequest,
+  SimilarOutfitsResponse,
+  HealthResponse,
 } from './types'
 
-/**
- * Wrapper for fetch with timeout
- */
+// ---------------------------------------------------------------------------
+// Internal helpers
+// ---------------------------------------------------------------------------
+
 async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Response> {
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), API_TIMEOUT)
 
   try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal,
-    })
+    const response = await fetch(url, { ...options, signal: controller.signal })
 
     if (!response.ok) {
-      throw new Error(`API error: ${response.status} ${response.statusText}`)
+      const body = await response.json().catch(() => ({})) as { error?: string }
+      throw new Error(body.error ?? `API error: ${response.status} ${response.statusText}`)
     }
 
     return response
@@ -39,78 +45,109 @@ async function fetchWithTimeout(url: string, options?: RequestInit): Promise<Res
   }
 }
 
-/**
- * GET /api/users
- * Fetch list of all users with outfit count
- */
-export async function getUsers(): Promise<User[]> {
-  const response = await fetchWithTimeout(`${API_BASE}/users`)
-  const data = (await response.json()) as User[]
-  return data
+// ---------------------------------------------------------------------------
+// GET /health
+// ---------------------------------------------------------------------------
+
+export async function getHealth(): Promise<HealthResponse> {
+  const r = await fetchWithTimeout(`${API_BASE}/health`)
+  return r.json() as Promise<HealthResponse>
 }
 
-/**
- * GET /api/user/:uid/history
- * Fetch user's outfit history
- */
-export async function getUserHistory(userId: number): Promise<Outfit[]> {
-  const response = await fetchWithTimeout(`${API_BASE}/user/${userId}/history`)
-  const data = (await response.json()) as HistoryResponse
-  return data.history
+// ---------------------------------------------------------------------------
+// GET /list-users?page=X&limit=Y
+// ---------------------------------------------------------------------------
+
+export async function getUsers(page = 1, limit = 50): Promise<UsersResponse> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  const r = await fetchWithTimeout(`${API_BASE}/list-users?${params}`)
+  return r.json() as Promise<UsersResponse>
 }
 
-/**
- * GET /api/recommend/:uid
- * Fetch recommendation for specific user
- */
-export async function getRecommendations(userId: number): Promise<Outfit[]> {
-  const response = await fetchWithTimeout(`${API_BASE}/recommend/${userId}`)
-  const data = (await response.json()) as RecommendResponse
-  return data.recommendations
+// ---------------------------------------------------------------------------
+// GET /list-user-histories?user_id=X&page=Y&limit=Z
+// ---------------------------------------------------------------------------
+
+export async function getUserHistory(
+  userId: string,
+  page = 1,
+  limit = 20,
+): Promise<UserHistoryResponse> {
+  const params = new URLSearchParams({ user_id: userId, page: String(page), limit: String(limit) })
+  const r = await fetchWithTimeout(`${API_BASE}/list-user-histories?${params}`)
+  return r.json() as Promise<UserHistoryResponse>
 }
 
-/**
- * GET /api/categories
- * Fetch all available clothing categories
- */
-export async function getCategories(): Promise<string[]> {
-  const response = await fetchWithTimeout(`${API_BASE}/categories`)
-  const data = (await response.json()) as string[]
-  return data
-}
+// ---------------------------------------------------------------------------
+// POST /recommend
+// ---------------------------------------------------------------------------
 
-/**
- * GET /api/items/:category
- * Fetch all items in a specific category
- */
-export async function getItemsByCategory(category: string): Promise<Item[]> {
-  const response = await fetchWithTimeout(`${API_BASE}/items/${category}`)
-  const data = (await response.json()) as ItemsByCategoryResponse
-  return data.items
-}
-
-/**
- * POST /api/fitb
- * Fill-in-the-Blank: recommend items to complete an outfit
- *
- * @param itemIds - IDs of items already in outfit
- * @param targetCategory - category to fill (e.g., 'shoes')
- * @returns Recommended items in target category
- */
-export async function fitb(itemIds: number[], targetCategory: string): Promise<Item[]> {
-  const payload: FitbRequest = {
-    item_ids: itemIds,
-    target_category: targetCategory,
-  }
-
-  const response = await fetchWithTimeout(`${API_BASE}/fitb`, {
+export async function getRecommendations(req: RecommendRequest): Promise<RecommendResponse> {
+  const r = await fetchWithTimeout(`${API_BASE}/recommend`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
   })
+  return r.json() as Promise<RecommendResponse>
+}
 
-  const data = (await response.json()) as FitbResponse
-  return data.results
+// ---------------------------------------------------------------------------
+// POST /suggest-outfit-compatibility
+// ---------------------------------------------------------------------------
+
+export async function suggestCompatibility(
+  req: CompatibilityRequest,
+): Promise<CompatibilityResponse> {
+  const r = await fetchWithTimeout(`${API_BASE}/suggest-outfit-compatibility`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  return r.json() as Promise<CompatibilityResponse>
+}
+
+// ---------------------------------------------------------------------------
+// POST /similar-outfits
+// ---------------------------------------------------------------------------
+
+export async function findSimilarOutfits(
+  req: SimilarOutfitsRequest,
+): Promise<SimilarOutfitsResponse> {
+  const r = await fetchWithTimeout(`${API_BASE}/similar-outfits`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req),
+  })
+  return r.json() as Promise<SimilarOutfitsResponse>
+}
+
+// ---------------------------------------------------------------------------
+// GET /list-items?page=X&limit=Y&search=Z&category=N
+// ---------------------------------------------------------------------------
+
+export interface ListItemsParams {
+  page?: number
+  limit?: number
+  search?: string
+  category?: number
+}
+
+export async function listItems(params: ListItemsParams = {}): Promise<ItemsResponse> {
+  const q = new URLSearchParams()
+  if (params.page !== undefined) q.set('page', String(params.page))
+  if (params.limit !== undefined) q.set('limit', String(params.limit))
+  if (params.search) q.set('search', params.search)
+  if (params.category !== undefined) q.set('category', String(params.category))
+  const r = await fetchWithTimeout(`${API_BASE}/list-items?${q}`)
+  return r.json() as Promise<ItemsResponse>
+}
+
+// ---------------------------------------------------------------------------
+// GET /list-outfits?page=X&limit=Y
+// ---------------------------------------------------------------------------
+
+export async function listOutfits(page = 1, limit = 20): Promise<OutfitsResponse> {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+  const r = await fetchWithTimeout(`${API_BASE}/list-outfits?${params}`)
+  return r.json() as Promise<OutfitsResponse>
 }
