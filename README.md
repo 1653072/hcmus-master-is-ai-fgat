@@ -1,5 +1,12 @@
 # H·HFGAT — Fashion Recommendation Frontend
 
+---------
+**HELLO MY TEAM!**
+---------
+
+
+
+
 A **Next.js 16** web application that provides an interactive demo for the **Hierarchical Fashion Graph Attention Network (H-FGAT)** model. The frontend communicates with a Python/Flask backend (deployed on Render) via a transparent API proxy.
 
 ---
