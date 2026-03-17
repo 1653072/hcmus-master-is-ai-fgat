@@ -39,12 +39,12 @@ export default function ItemCard({ item, selected, onClick }: ItemCardProps) {
       {item.image_url && !imgError ? (
         <div
           className="w-full overflow-hidden"
-          style={{ height: '110px', backgroundColor: 'var(--surface2)' }}
+          style={{ height: '110px', backgroundColor: 'var(--surface2)', padding: '4px' }}
         >
           <img
             src={item.image_url}
             alt={item.title}
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain"
             onError={() => setImgError(true)}
           />
         </div>

@@ -6,21 +6,34 @@ import OutfitCard from '@/components/OutfitCard'
 import Pagination from '@/components/Pagination'
 import { useOutfits } from '@/hooks/useOutfits'
 import { useSimilarOutfits } from '@/hooks/useSimilarOutfits'
+import { getCategoryColor } from '@/lib/constants'
 import type { Outfit } from '@/lib/types'
 
 export default function SimilarPage() {
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null)
+  const [selectedImgErrors, setSelectedImgErrors] = useState<Set<string>>(new Set())
 
   const { outfits, loading: outfitsLoading, page, totalPages, total, setPage } = useOutfits(12)
   const { result, loading: searching, error, submit, reset } = useSimilarOutfits()
 
   const handleSelectOutfit = (outfitId: string) => {
     setSelectedOutfitId(outfitId)
+    setSelectedImgErrors(new Set())
+    reset()
+  }
+
+  const handleClearSelection = () => {
+    setSelectedOutfitId(null)
+    setSelectedImgErrors(new Set())
     reset()
   }
 
   const handleFindSimilar = () => {
     if (selectedOutfitId) submit(selectedOutfitId, 10)
+  }
+
+  const handleImageError = (itemId: string) => {
+    setSelectedImgErrors((prev) => new Set([...prev, itemId]))
   }
 
   const selectedOutfitEntry = outfits.find((o) => o.outfit_id === selectedOutfitId)
@@ -105,56 +118,13 @@ export default function SimilarPage() {
           )}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-
-          {/* Selected outfit summary */}
-          {selectedOutfitId && queryOutfit && (
-            <div
-              className="p-3 rounded-xl border"
-              style={{
-                backgroundColor: 'rgba(200, 169, 110, 0.06)',
-                borderColor: 'var(--accent)',
-              }}
-            >
-              <div
-                className="text-xs font-semibold uppercase tracking-wider mb-1"
-                style={{ color: 'var(--accent)' }}
-              >
-                Selected: Outfit {selectedOutfitId}
-              </div>
-              <div className="text-xs" style={{ color: 'var(--muted)' }}>
-                {queryOutfit.items.length} item{queryOutfit.items.length !== 1 ? 's' : ''}
-              </div>
-            </div>
-          )}
-
-          {/* Find similar button */}
-          <button
-            onClick={handleFindSimilar}
-            disabled={!selectedOutfitId || searching}
-            className="w-full px-4 py-3 rounded-lg font-semibold uppercase tracking-wider text-sm transition-all"
-            style={{
-              backgroundColor:
-                selectedOutfitId && !searching ? 'var(--accent)' : 'var(--surface2)',
-              color: selectedOutfitId && !searching ? '#0a0a0a' : 'var(--muted)',
-              cursor: selectedOutfitId && !searching ? 'pointer' : 'not-allowed',
-              opacity: selectedOutfitId && !searching ? 1 : 0.6,
-            }}
-          >
-            {searching ? '🔄 Searching...' : '🔍 Find Similar Outfits'}
-          </button>
-
-          {!selectedOutfitId && (
-            <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
-              Click an outfit above to select it
-            </p>
-          )}
         </div>
 
-        {/* ── Right: Similar outfits results ── */}
-        <div className="lg:col-span-3">
+        {/* ── Right: Selected outfit + Results ── */}
+        <div className="lg:col-span-3 space-y-6">
           {error && (
             <div
-              className="p-4 rounded-lg mb-4 text-sm"
+              className="p-4 rounded-lg text-sm"
               style={{
                 backgroundColor: 'rgba(232, 124, 124, 0.1)',
                 borderLeft: '3px solid #e87c7c',
@@ -165,7 +135,122 @@ export default function SimilarPage() {
             </div>
           )}
 
-          {!result && !searching && (
+          {/* SECTION 1: Selected Outfit (always visible when selected) */}
+          {selectedOutfitId && queryOutfit && (
+            <div
+              className="p-4 rounded-xl border relative group"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+              }}
+            >
+              {/* Header */}
+              <div className="mb-4">
+                <div
+                  className="text-xs font-semibold uppercase tracking-wider"
+                  style={{ color: 'var(--accent)' }}
+                >
+                  Selected Outfit {selectedOutfitId}
+                </div>
+              </div>
+
+              {/* Item grid (2 columns) */}
+              <div className="grid grid-cols-2 gap-2">
+                {queryOutfit.items.map((item) => {
+                  const hasError = selectedImgErrors.has(item.item_id)
+                  const color = getCategoryColor(item.category)
+
+                  return (
+                    <div
+                      key={item.item_id}
+                      className="rounded-lg overflow-hidden border flex flex-col group"
+                      style={{
+                        backgroundColor: 'var(--surface2)',
+                        borderColor: 'var(--border)',
+                      }}
+                      title={item.title}
+                    >
+                      {/* Image or fallback */}
+                      {item.image_url && !hasError ? (
+                        <div
+                          className="w-full overflow-hidden relative"
+                          style={{ height: '110px', backgroundColor: 'var(--surface2)', padding: '4px' }}
+                        >
+                          <img
+                            src={item.image_url}
+                            alt={item.title}
+                            className="w-full h-full object-contain"
+                            onError={() => handleImageError(item.item_id)}
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="w-full flex items-center justify-center text-3xl relative"
+                          style={{ height: '110px', backgroundColor: 'var(--surface2)' }}
+                        >
+                          👗
+                        </div>
+                      )}
+
+                      {/* Title & category */}
+                      <div className="p-2 flex-1 flex flex-col">
+                        <p
+                          className="text-xs leading-tight line-clamp-1 mb-1"
+                          style={{ color: 'var(--text)' }}
+                          title={item.title}
+                        >
+                          {item.title}
+                        </p>
+                        <div
+                          className="text-xs px-1 rounded w-fit"
+                          style={{
+                            backgroundColor: `${color}22`,
+                            color,
+                          }}
+                        >
+                          Cat.{item.category}
+                        </div>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {/* Delete button (single × at container level) */}
+              <button
+                onClick={reset}
+                className="absolute opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-sm"
+                style={{
+                  bottom: '12px',
+                  right: '12px',
+                  backgroundColor: '#e87c7c',
+                  border: 'none',
+                  color: '#ffffff',
+                }}
+              >
+                ×
+              </button>            </div>
+          )}
+
+          {/* Find Similar button (below selected outfit) */}
+          {selectedOutfitId && (
+            <button
+              onClick={handleFindSimilar}
+              disabled={searching}
+              className="w-full px-4 py-3 rounded-lg font-semibold uppercase tracking-wider text-sm transition-all"
+              style={{
+                backgroundColor: !searching ? 'var(--accent)' : 'var(--surface2)',
+                color: !searching ? '#0a0a0a' : 'var(--muted)',
+                cursor: !searching ? 'pointer' : 'not-allowed',
+                opacity: !searching ? 1 : 0.6,
+              }}
+            >
+              {searching ? '🔄 Searching...' : '🔍 Find Similar Outfits'}
+            </button>
+          )}
+
+          {/* SECTION 2: Results or Idle Placeholder */}
+          {/* Show idle placeholder when no outfit selected */}
+          {!selectedOutfitId && !result && !searching && (
             <div
               className="p-16 rounded-xl text-center"
               style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
@@ -177,6 +262,7 @@ export default function SimilarPage() {
             </div>
           )}
 
+          {/* Show loading state */}
           {searching && (
             <div
               className="p-16 rounded-xl text-center"
@@ -187,6 +273,7 @@ export default function SimilarPage() {
             </div>
           )}
 
+          {/* Show results */}
           {result && !searching && (
             <div className="space-y-4">
               <div
