@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import ItemCard from '@/components/ItemCard'
 import FitbResultItem from '@/components/FitbResultItem'
-import SelectedItemsPreview from '@/components/SelectedItemsPreview'
 import Pagination from '@/components/Pagination'
 import { useItems } from '@/hooks/useItems'
 import { useCompatibility } from '@/hooks/useCompatibility'
@@ -209,11 +208,11 @@ export default function CompatibilityPage() {
           )}
         </div>
 
-        {/* ── Right: Selected Items (persistent) + Analysis Results ── */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* ── Right: Results ── */}
+        <div className="lg:col-span-3">
           {error && (
             <div
-              className="p-4 rounded-lg text-sm"
+              className="p-4 rounded-lg mb-4 text-sm"
               style={{
                 backgroundColor: 'rgba(232, 124, 124, 0.1)',
                 borderLeft: '3px solid #e87c7c',
@@ -224,14 +223,7 @@ export default function CompatibilityPage() {
             </div>
           )}
 
-          {/* SECTION 1: Selected Items (always visible when items selected) */}
-          {selectedItems.length > 0 && (
-            <SelectedItemsPreview items={selectedItems} onRemoveItem={handleToggleItem} />
-          )}
-
-          {/* SECTION 2: Analysis Results or Idle Placeholder */}
-          {/* Show idle placeholder when no items selected and no analysis */}
-          {selectedItems.length === 0 && !result && !analyzing && (
+          {!result && !analyzing && (
             <div
               className="p-16 rounded-xl text-center"
               style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
@@ -243,19 +235,6 @@ export default function CompatibilityPage() {
             </div>
           )}
 
-          {/* Show idle/prompt when items selected but no analysis yet */}
-          {selectedItems.length > 0 && !result && !analyzing && (
-            <div
-              className="p-12 rounded-xl text-center"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: '1px' }}
-            >
-              <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                Click &ldquo;Analyze Compatibility&rdquo; to score this outfit
-              </div>
-            </div>
-          )}
-
-          {/* Show loading state */}
           {analyzing && (
             <div
               className="p-16 rounded-xl text-center"
@@ -266,9 +245,8 @@ export default function CompatibilityPage() {
             </div>
           )}
 
-          {/* Show analysis results */}
           {result && !analyzing && (
-            <>
+            <div className="space-y-6">
               {/* Compatibility score card */}
               <div
                 className="p-6 rounded-xl border"
@@ -363,7 +341,7 @@ export default function CompatibilityPage() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </div>
       </div>
