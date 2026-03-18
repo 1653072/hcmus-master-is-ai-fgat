@@ -217,7 +217,10 @@ export default function SimilarPage() {
               </div>
               {/* Delete button (single × at container level) */}
               <button
-                onClick={reset}
+                onClick={() => {
+                  setSelectedOutfitId(null)
+                  reset()
+                }}
                 className="absolute opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-sm"
                 style={{
                   bottom: '12px',
