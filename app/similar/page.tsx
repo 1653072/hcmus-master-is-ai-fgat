@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import OutfitGrid from '@/components/OutfitGrid'
 import OutfitCard from '@/components/OutfitCard'
 import Pagination from '@/components/Pagination'
@@ -12,8 +12,19 @@ import type { Outfit } from '@/lib/types'
 export default function SimilarPage() {
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null)
   const [selectedImgErrors, setSelectedImgErrors] = useState<Set<string>>(new Set())
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  const { outfits, loading: outfitsLoading, page, totalPages, total, setPage } = useOutfits(12)
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const { outfits, loading: outfitsLoading, page, totalPages, total, setPage } = useOutfits(
+    12,
+    debouncedSearch || undefined,
+  )
   const { result, loading: searching, error, submit, reset } = useSimilarOutfits()
 
   const handleSelectOutfit = (outfitId: string) => {
@@ -71,19 +82,40 @@ export default function SimilarPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* ── Left: Outfit browser ── */}
         <div className="lg:col-span-2 space-y-4">
-          <div
-            className="text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--accent)' }}
-          >
-            Browse Outfits
-            {total > 0 && (
-              <span
-                className="ml-2 font-normal normal-case"
-                style={{ color: 'var(--muted)' }}
-              >
-                ({total.toLocaleString()} total)
-              </span>
-            )}
+          {/* Search input */}
+          <div>
+            <div
+              className="text-xs font-semibold uppercase tracking-wider mb-2"
+              style={{ color: 'var(--accent)' }}
+            >
+              Search Outfits
+              {total > 0 && (
+                <span
+                  className="ml-2 font-normal normal-case"
+                  style={{ color: 'var(--muted)' }}
+                >
+                  ({total.toLocaleString()} total)
+                </span>
+              )}
+            </div>
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search by item title..."
+              className="w-full px-3 py-2 rounded-lg text-sm border outline-none transition-all"
+              style={{
+                backgroundColor: 'var(--surface)',
+                borderColor: 'var(--border)',
+                color: 'var(--text)',
+              }}
+              onFocus={(e) => {
+                ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--accent)'
+              }}
+              onBlur={(e) => {
+                ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--border)'
+              }}
+            />
           </div>
 
           {outfitsLoading ? (
