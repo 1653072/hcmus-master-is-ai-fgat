@@ -14,7 +14,7 @@ interface UseOutfitsReturn {
   setPage: (p: number) => void
 }
 
-export function useOutfits(limit = 12): UseOutfitsReturn {
+export function useOutfits(limit = 12, search?: string): UseOutfitsReturn {
   const [outfits, setOutfits] = useState<OutfitEntry[]>([])
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
@@ -27,7 +27,7 @@ export function useOutfits(limit = 12): UseOutfitsReturn {
       try {
         setLoading(true)
         setError(null)
-        const data = await listOutfits(p, limit)
+        const data = await listOutfits({ page: p, limit, search })
         setOutfits(data.outfits)
         setTotalPages(data.total_pages)
         setTotal(data.total)
@@ -37,8 +37,13 @@ export function useOutfits(limit = 12): UseOutfitsReturn {
         setLoading(false)
       }
     },
-    [limit],
+    [limit, search],
   )
+
+  // Reset to page 1 when search changes
+  useEffect(() => {
+    setPage(1)
+  }, [search])
 
   useEffect(() => {
     fetchPage(page)

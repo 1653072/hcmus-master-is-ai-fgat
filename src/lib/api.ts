@@ -143,11 +143,20 @@ export async function listItems(params: ListItemsParams = {}): Promise<ItemsResp
 }
 
 // ---------------------------------------------------------------------------
-// GET /list-outfits?page=X&limit=Y
+// GET /list-outfits?page=X&limit=Y&search=Z
 // ---------------------------------------------------------------------------
 
-export async function listOutfits(page = 1, limit = 20): Promise<OutfitsResponse> {
-  const params = new URLSearchParams({ page: String(page), limit: String(limit) })
-  const r = await fetchWithTimeout(`${API_BASE}/list-outfits?${params}`)
+export interface ListOutfitsParams {
+  page?: number
+  limit?: number
+  search?: string
+}
+
+export async function listOutfits(params: ListOutfitsParams = {}): Promise<OutfitsResponse> {
+  const q = new URLSearchParams()
+  if (params.page !== undefined) q.set('page', String(params.page))
+  if (params.limit !== undefined) q.set('limit', String(params.limit))
+  if (params.search) q.set('search', params.search)
+  const r = await fetchWithTimeout(`${API_BASE}/list-outfits?${q}`)
   return r.json() as Promise<OutfitsResponse>
 }

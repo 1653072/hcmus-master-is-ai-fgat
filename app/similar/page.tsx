@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import OutfitGrid from '@/components/OutfitGrid'
 import OutfitCard from '@/components/OutfitCard'
 import Pagination from '@/components/Pagination'
@@ -10,8 +10,19 @@ import type { Outfit } from '@/lib/types'
 
 export default function SimilarPage() {
   const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null)
+  const [searchInput, setSearchInput] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
 
-  const { outfits, loading: outfitsLoading, error: outfitsError, page, totalPages, total, setPage } = useOutfits(12)
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), 400)
+    return () => clearTimeout(timer)
+  }, [searchInput])
+
+  const { outfits, loading: outfitsLoading, error: outfitsError, page, totalPages, total, setPage } = useOutfits(
+    12,
+    debouncedSearch || undefined,
+  )
   const { result, loading: searching, error, submit, reset } = useSimilarOutfits()
 
   const handleSelectOutfit = (outfit: Outfit) => {
@@ -41,7 +52,7 @@ export default function SimilarPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-10 page-enter">
-      {/* Page header — left-aligned */}
+      {/* Page header */}
       <div className="mb-8">
         <h1
           className="text-3xl font-bold uppercase tracking-tight leading-none section-label"
@@ -57,16 +68,51 @@ export default function SimilarPage() {
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
         {/* Left: Outfit browser */}
         <div className="lg:col-span-2 lg:sticky lg:top-[69px] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2 space-y-4 thin-scrollbar">
-          <div
-            className="section-label text-xs font-semibold uppercase tracking-wider"
-            style={{ color: 'var(--accent)' }}
-          >
-            Browse Outfits
-            {total > 0 && (
-              <span className="ml-2 font-normal normal-case tabular-nums" style={{ color: 'var(--muted)' }}>
-                ({total.toLocaleString()} total)
-              </span>
-            )}
+          {/* Search input */}
+          <div>
+            <div
+              className="section-label text-xs font-semibold uppercase tracking-wider mb-2"
+              style={{ color: 'var(--accent)' }}
+            >
+              Search Outfits
+              {total > 0 && (
+                <span className="ml-2 font-normal normal-case tabular-nums" style={{ color: 'var(--muted)' }}>
+                  ({total.toLocaleString()} total)
+                </span>
+              )}
+            </div>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search by item title..."
+                className="w-full px-3 py-2 rounded-lg text-sm border outline-none transition-all"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                }}
+                onFocus={(e) => {
+                  ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--accent)'
+                }}
+                onBlur={(e) => {
+                  ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--border)'
+                }}
+              />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center"
+                  style={{ color: 'var(--muted)' }}
+                  aria-label="Clear search"
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                    <path d="M1 1L7 7M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
 
           {selectedOutfit && !isSelectedOnCurrentPage && (
@@ -99,11 +145,7 @@ export default function SimilarPage() {
           {outfitsLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg skeleton-shimmer"
-                  style={{ minHeight: '120px' }}
-                />
+                <div key={i} className="rounded-lg skeleton-shimmer" style={{ minHeight: '120px' }} />
               ))}
             </div>
           ) : (
@@ -136,16 +178,12 @@ export default function SimilarPage() {
           className="lg:col-span-3 lg:sticky lg:top-[69px] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-2 space-y-5 thin-scrollbar lg:border-l"
           style={{ borderColor: 'var(--border)' }}
         >
-          {error && (
-            <div className="error-banner">{error}</div>
-          )}
+          {error && <div className="error-banner">{error}</div>}
 
-          {/* Selected Outfit */}
           {selectedOutfit && queryOutfit && (
             <OutfitCard outfit={queryOutfit} onClear={handleClearSelection} />
           )}
 
-          {/* Find Similar button */}
           {selectedOutfit && (
             <button
               onClick={handleFindSimilar}
@@ -175,7 +213,6 @@ export default function SimilarPage() {
             </button>
           )}
 
-          {/* Idle Placeholder */}
           {!selectedOutfit && !result && !searching && (
             <div
               className="py-14 rounded-lg text-center"
@@ -187,26 +224,17 @@ export default function SimilarPage() {
             </div>
           )}
 
-          {/* Loading skeleton */}
           {searching && (
             <div className="space-y-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="rounded-lg skeleton-shimmer"
-                  style={{ minHeight: '130px' }}
-                />
+                <div key={i} className="rounded-lg skeleton-shimmer" style={{ minHeight: '130px' }} />
               ))}
             </div>
           )}
 
-          {/* Results */}
           {result && !searching && (
             <div className="space-y-4">
-              <div
-                className="pt-4 border-t"
-                style={{ borderColor: 'var(--border)' }}
-              >
+              <div className="pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
                 <h3
                   className="text-sm font-bold uppercase tracking-wider"
                   style={{ fontFamily: 'var(--font-heading)', color: 'var(--green)' }}
