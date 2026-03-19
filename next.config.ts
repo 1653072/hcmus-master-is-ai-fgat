@@ -8,7 +8,7 @@ import type { NextConfig } from 'next'
  *
  * In Vercel: add BE_URL as an environment variable in project settings.
  */
-const beUrl = process.env.BE_URL ?? 'http://localhost:5000'
+const beUrl = process.env.BE_URL ?? 'https://hcmus-master-is-ai-fgat-be.onrender.com'
 
 const nextConfig: NextConfig = {
   async rewrites() {
