@@ -1,114 +1,125 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import OutfitGrid from '@/components/OutfitGrid'
 import OutfitCard from '@/components/OutfitCard'
 import Pagination from '@/components/Pagination'
 import { useOutfits } from '@/hooks/useOutfits'
 import { useSimilarOutfits } from '@/hooks/useSimilarOutfits'
-import { getCategoryColor } from '@/lib/constants'
 import type { Outfit } from '@/lib/types'
 
 export default function SimilarPage() {
-  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null)
-  const [selectedImgErrors, setSelectedImgErrors] = useState<Set<string>>(new Set())
+  const [selectedOutfit, setSelectedOutfit] = useState<Outfit | null>(null)
 
-  const { outfits, loading: outfitsLoading, page, totalPages, total, setPage } = useOutfits(12)
+  const { outfits, loading: outfitsLoading, error: outfitsError, page, totalPages, total, setPage } = useOutfits(12)
   const { result, loading: searching, error, submit, reset } = useSimilarOutfits()
 
-  const handleSelectOutfit = (outfitId: string) => {
-    setSelectedOutfitId(outfitId)
-    setSelectedImgErrors(new Set())
+  const handleSelectOutfit = (outfit: Outfit) => {
+    setSelectedOutfit(outfit)
     reset()
   }
 
   const handleClearSelection = () => {
-    setSelectedOutfitId(null)
-    setSelectedImgErrors(new Set())
+    setSelectedOutfit(null)
     reset()
   }
 
   const handleFindSimilar = () => {
-    if (selectedOutfitId) submit(selectedOutfitId, 10)
+    if (selectedOutfit) submit(selectedOutfit.outfit_id, 10)
   }
 
-  const handleImageError = (itemId: string) => {
-    setSelectedImgErrors((prev) => new Set([...prev, itemId]))
-  }
+  const isSelectedOnCurrentPage = selectedOutfit
+    ? outfits.some((o) => o.outfit_id === selectedOutfit.outfit_id)
+    : false
 
-  const selectedOutfitEntry = outfits.find((o) => o.outfit_id === selectedOutfitId)
+  const similarOutfits: Outfit[] = result?.similar_outfits ?? []
 
-  const similarOutfits: Outfit[] =
-    result?.similar_outfits.map((s) => ({
-      outfit_id: s.outfit_id,
-      rank: s.rank,
-      similarity: s.similarity,
-      items: s.items,
-    })) ?? []
-
-  // Show the queried outfit from result (enriched by BE) or from local list
-  const queryOutfit: Outfit | null = result
+  // Show the queried outfit from result (enriched by BE) or from stored selection
+  const queryOutfit: Outfit | null = useMemo(() => result
     ? { outfit_id: result.outfit_id, items: result.outfit_items }
-    : selectedOutfitEntry
-      ? { outfit_id: selectedOutfitEntry.outfit_id, items: selectedOutfitEntry.items }
-      : null
+    : selectedOutfit, [result, selectedOutfit])
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Page header */}
+    <div className="max-w-7xl mx-auto px-6 py-10 page-enter">
+      {/* Page header — left-aligned */}
       <div className="mb-8">
         <h1
-          className="text-3xl font-bold uppercase tracking-wider mb-1"
+          className="text-3xl font-bold uppercase tracking-tight leading-none section-label"
           style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent)' }}
         >
           Similar Outfits
         </h1>
-        <p style={{ color: 'var(--muted)' }} className="text-sm">
+        <p style={{ color: 'var(--muted)' }} className="text-sm mt-1.5">
           Browse outfits in the dataset, select one, and discover the most visually similar outfits
         </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* ── Left: Outfit browser ── */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Left: Outfit browser */}
+        <div className="lg:col-span-2 lg:sticky lg:top-[69px] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pr-2 space-y-4 thin-scrollbar">
           <div
-            className="text-xs font-semibold uppercase tracking-wider"
+            className="section-label text-xs font-semibold uppercase tracking-wider"
             style={{ color: 'var(--accent)' }}
           >
             Browse Outfits
             {total > 0 && (
-              <span
-                className="ml-2 font-normal normal-case"
-                style={{ color: 'var(--muted)' }}
-              >
+              <span className="ml-2 font-normal normal-case tabular-nums" style={{ color: 'var(--muted)' }}>
                 ({total.toLocaleString()} total)
               </span>
             )}
           </div>
+
+          {selectedOutfit && !isSelectedOnCurrentPage && (
+            <div
+              className="px-3 py-2 rounded-lg text-xs flex items-center justify-between"
+              style={{
+                backgroundColor: 'rgba(212,165,70,0.08)',
+                border: '1px solid var(--accent)',
+                color: 'var(--accent)',
+              }}
+            >
+              <span>Outfit {selectedOutfit.outfit_id} selected (on another page)</span>
+              <button
+                onClick={handleClearSelection}
+                className="ml-2 w-5 h-5 flex items-center justify-center rounded-full shrink-0"
+                style={{ color: 'var(--muted)' }}
+                aria-label="Clear selection"
+              >
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                  <path d="M1 1L7 7M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </button>
+            </div>
+          )}
+
+          {outfitsError && (
+            <div className="error-banner">{outfitsError}</div>
+          )}
 
           {outfitsLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {Array.from({ length: 6 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-xl animate-pulse"
-                  style={{ backgroundColor: 'var(--surface)', minHeight: '100px' }}
+                  className="rounded-lg skeleton-shimmer"
+                  style={{ minHeight: '120px' }}
                 />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {outfits.map((outfit) => (
-                <OutfitCard
-                  key={outfit.outfit_id}
-                  outfit={{ outfit_id: outfit.outfit_id, items: outfit.items }}
-                  selected={selectedOutfitId === outfit.outfit_id}
-                  onClick={() => handleSelectOutfit(outfit.outfit_id)}
-                />
+            <div className="stagger-in grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {outfits.map((outfit, i) => (
+                <div key={outfit.outfit_id} style={{ animationDelay: `${Math.min(i * 50, 300)}ms` }}>
+                  <OutfitCard
+                    outfit={outfit}
+                    selected={selectedOutfit?.outfit_id === outfit.outfit_id}
+                    onClick={() => handleSelectOutfit(outfit)}
+                  />
+                </div>
               ))}
               {outfits.length === 0 && (
                 <div
-                  className="col-span-2 py-8 text-center text-sm rounded-xl"
+                  className="col-span-2 py-8 text-center text-sm rounded-lg"
                   style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
                 >
                   No outfits found
@@ -120,172 +131,92 @@ export default function SimilarPage() {
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
         </div>
 
-        {/* ── Right: Selected outfit + Results ── */}
-        <div className="lg:col-span-3 space-y-6">
+        {/* Right: Selected outfit + Results */}
+        <div
+          className="lg:col-span-3 lg:sticky lg:top-[69px] lg:max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:pl-2 space-y-5 thin-scrollbar lg:border-l"
+          style={{ borderColor: 'var(--border)' }}
+        >
           {error && (
-            <div
-              className="p-4 rounded-lg text-sm"
-              style={{
-                backgroundColor: 'rgba(232, 124, 124, 0.1)',
-                borderLeft: '3px solid #e87c7c',
-                color: '#e87c7c',
-              }}
-            >
-              {error}
-            </div>
+            <div className="error-banner">{error}</div>
           )}
 
-          {/* SECTION 1: Selected Outfit (always visible when selected) */}
-          {selectedOutfitId && queryOutfit && (
-            <div
-              className="p-4 rounded-xl border relative group"
-              style={{
-                backgroundColor: 'var(--surface)',
-                borderColor: 'var(--border)',
-              }}
-            >
-              {/* Header */}
-              <div className="mb-4">
-                <div
-                  className="text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Selected Outfit {selectedOutfitId}
-                </div>
-              </div>
-
-              {/* Item grid (2 columns) */}
-              <div className="grid grid-cols-2 gap-2">
-                {queryOutfit.items.map((item) => {
-                  const hasError = selectedImgErrors.has(item.item_id)
-                  const color = getCategoryColor(item.category)
-
-                  return (
-                    <div
-                      key={item.item_id}
-                      className="rounded-lg overflow-hidden border flex flex-col group"
-                      style={{
-                        backgroundColor: 'var(--surface2)',
-                        borderColor: 'var(--border)',
-                      }}
-                      title={item.title}
-                    >
-                      {/* Image or fallback */}
-                      {item.image_url && !hasError ? (
-                        <div
-                          className="w-full overflow-hidden relative"
-                          style={{ height: '110px', backgroundColor: 'var(--surface2)', padding: '4px' }}
-                        >
-                          <img
-                            src={item.image_url}
-                            alt={item.title}
-                            className="w-full h-full object-contain"
-                            onError={() => handleImageError(item.item_id)}
-                          />
-                        </div>
-                      ) : (
-                        <div
-                          className="w-full flex items-center justify-center text-3xl relative"
-                          style={{ height: '110px', backgroundColor: 'var(--surface2)' }}
-                        >
-                          👗
-                        </div>
-                      )}
-
-                      {/* Title & category */}
-                      <div className="p-2 flex-1 flex flex-col">
-                        <p
-                          className="text-xs leading-tight line-clamp-1 mb-1"
-                          style={{ color: 'var(--text)' }}
-                          title={item.title}
-                        >
-                          {item.title}
-                        </p>
-                        <div
-                          className="text-xs px-1 rounded w-fit"
-                          style={{
-                            backgroundColor: `${color}22`,
-                            color,
-                          }}
-                        >
-                          Cat.{item.category}
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              {/* Delete button (single × at container level) */}
-              <button
-                onClick={() => {
-                  setSelectedOutfitId(null)
-                  reset()
-                }}
-                className="absolute opacity-0 group-hover:opacity-100 transition-opacity w-7 h-7 rounded-full flex items-center justify-center text-sm"
-                style={{
-                  bottom: '12px',
-                  right: '12px',
-                  backgroundColor: '#e87c7c',
-                  border: 'none',
-                  color: '#ffffff',
-                }}
-              >
-                ×
-              </button>            </div>
+          {/* Selected Outfit */}
+          {selectedOutfit && queryOutfit && (
+            <OutfitCard outfit={queryOutfit} onClear={handleClearSelection} />
           )}
 
-          {/* Find Similar button (below selected outfit) */}
-          {selectedOutfitId && (
+          {/* Find Similar button */}
+          {selectedOutfit && (
             <button
               onClick={handleFindSimilar}
               disabled={searching}
-              className="w-full px-4 py-3 rounded-lg font-semibold uppercase tracking-wider text-sm transition-all"
+              className="w-full px-4 py-3 rounded-lg font-semibold uppercase tracking-wider text-sm tactile-press"
               style={{
                 backgroundColor: !searching ? 'var(--accent)' : 'var(--surface2)',
-                color: !searching ? '#0a0a0a' : 'var(--muted)',
+                color: !searching ? '#fff' : 'var(--muted)',
                 cursor: !searching ? 'pointer' : 'not-allowed',
-                opacity: !searching ? 1 : 0.6,
+                opacity: !searching ? 1 : 0.5,
+                transition: 'all 0.3s var(--ease-out-expo)',
+              }}
+              onMouseEnter={(e) => {
+                if (!searching) {
+                  ;(e.currentTarget as HTMLButtonElement).style.filter = 'brightness(1.1)'
+                  ;(e.currentTarget as HTMLButtonElement).style.transform = 'translateY(-2px)'
+                  ;(e.currentTarget as HTMLButtonElement).style.boxShadow = '0 4px 14px rgba(212,165,70,0.4)'
+                }
+              }}
+              onMouseLeave={(e) => {
+                ;(e.currentTarget as HTMLButtonElement).style.filter = 'none'
+                ;(e.currentTarget as HTMLButtonElement).style.transform = 'none'
+                ;(e.currentTarget as HTMLButtonElement).style.boxShadow = 'none'
               }}
             >
-              {searching ? '🔄 Searching...' : '🔍 Find Similar Outfits'}
+              {searching ? 'Searching...' : 'Find Similar Outfits'}
             </button>
           )}
 
-          {/* SECTION 2: Results or Idle Placeholder */}
-          {/* Show idle placeholder when no outfit selected */}
-          {!selectedOutfitId && !result && !searching && (
+          {/* Idle Placeholder */}
+          {!selectedOutfit && !result && !searching && (
             <div
-              className="p-16 rounded-xl text-center"
+              className="py-14 rounded-lg text-center"
               style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
             >
-              <div className="text-5xl mb-4">🔍</div>
               <div className="text-sm">
                 Select an outfit and click &ldquo;Find Similar Outfits&rdquo;
               </div>
             </div>
           )}
 
-          {/* Show loading state */}
+          {/* Loading skeleton */}
           {searching && (
-            <div
-              className="p-16 rounded-xl text-center"
-              style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
-            >
-              <div className="text-5xl mb-4 animate-pulse">🔄</div>
-              <div className="text-sm">Finding similar outfits…</div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg skeleton-shimmer"
+                  style={{ minHeight: '130px' }}
+                />
+              ))}
             </div>
           )}
 
-          {/* Show results */}
+          {/* Results */}
           {result && !searching && (
             <div className="space-y-4">
               <div
-                className="text-xs font-semibold uppercase tracking-wider"
-                style={{ color: 'var(--accent)' }}
+                className="pt-4 border-t"
+                style={{ borderColor: 'var(--border)' }}
               >
-                Top {result.similar_outfits.length} Most Similar Outfits
+                <h3
+                  className="text-sm font-bold uppercase tracking-wider"
+                  style={{ fontFamily: 'var(--font-heading)', color: 'var(--green)' }}
+                >
+                  Top {result.similar_outfits.length} Most Similar
+                </h3>
               </div>
-              <OutfitGrid outfits={similarOutfits} showScore={true} />
+              <div className="mt-3">
+                <OutfitGrid outfits={similarOutfits} showScore={true} />
+              </div>
             </div>
           )}
         </div>

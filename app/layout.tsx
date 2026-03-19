@@ -1,18 +1,18 @@
 import type { Metadata } from 'next'
-import { Cormorant_Garamond, DM_Mono } from 'next/font/google'
+import { Oswald, Raleway } from 'next/font/google'
 import NavBar from '@/components/NavBar'
 import './globals.css'
 
-const cormorantGaramond = Cormorant_Garamond({
+const oswald = Oswald({
   variable: '--font-heading',
   subsets: ['latin'],
   weight: ['400', '500', '600', '700'],
 })
 
-const dmMono = DM_Mono({
+const raleway = Raleway({
   variable: '--font-body',
   subsets: ['latin'],
-  weight: ['400', '500'],
+  weight: ['400', '500', '600', '700'],
 })
 
 export const metadata: Metadata = {
@@ -26,16 +26,23 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(!t){t=window.matchMedia('(prefers-color-scheme:light)').matches?'light':'dark'}document.documentElement.dataset.theme=t}catch(e){}})()`,
+          }}
+        />
+      </head>
       <body
-        className={`${cormorantGaramond.variable} ${dmMono.variable} antialiased`}
+        className={`${oswald.variable} ${raleway.variable} antialiased`}
         style={{
           backgroundColor: 'var(--bg)',
           color: 'var(--text)',
         }}
       >
         <NavBar />
-        <main>
+        <main className="pt-2">
           {children}
         </main>
       </body>

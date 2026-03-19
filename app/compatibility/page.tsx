@@ -1,18 +1,22 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import ItemCard from '@/components/ItemCard'
 import FitbResultItem from '@/components/FitbResultItem'
 import SelectedItemsPreview from '@/components/SelectedItemsPreview'
 import Pagination from '@/components/Pagination'
 import { useItems } from '@/hooks/useItems'
 import { useCompatibility } from '@/hooks/useCompatibility'
+import { MAX_SELECTED_ITEMS } from '@/lib/constants'
 import type { Item } from '@/lib/types'
 
 export default function CompatibilityPage() {
   const [searchInput, setSearchInput] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedItems, setSelectedItems] = useState<Item[]>([])
+  const [maxItemsWarning, setMaxItemsWarning] = useState(false)
+  const [needsReanalysis, setNeedsReanalysis] = useState(false)
+  const [scoreAnimated, setScoreAnimated] = useState(false)
 
   const { result, loading: analyzing, error, submit, reset } = useCompatibility()
   const { items, loading: itemsLoading, page, totalPages, total, setPage } = useItems({
@@ -26,110 +30,218 @@ export default function CompatibilityPage() {
     return () => clearTimeout(timer)
   }, [searchInput])
 
+  // Animate score bar from 0 on result arrival
+  useEffect(() => {
+    if (result && !analyzing) {
+      setScoreAnimated(false)
+      const raf = requestAnimationFrame(() => setScoreAnimated(true))
+      return () => cancelAnimationFrame(raf)
+    }
+  }, [result, analyzing])
+
   const handleToggleItem = useCallback(
     (item: Item) => {
       setSelectedItems((prev) => {
         const exists = prev.some((i) => i.item_id === item.item_id)
-        if (exists) return prev.filter((i) => i.item_id !== item.item_id)
-        if (prev.length >= 8) return prev
+        if (exists) {
+          setMaxItemsWarning(false)
+          return prev.filter((i) => i.item_id !== item.item_id)
+        }
+        if (prev.length >= MAX_SELECTED_ITEMS) {
+          setMaxItemsWarning(true)
+          return prev
+        }
+        setMaxItemsWarning(false)
         return [...prev, item]
       })
-      reset()
+      // Mark stale instead of destroying results
+      if (result) setNeedsReanalysis(true)
     },
-    [reset],
+    [result],
   )
 
   const handleAnalyze = () => {
-    if (selectedItems.length >= 1) {
+    if (selectedItems.length >= 2) {
       submit(selectedItems.map((i) => i.item_id), 5)
+      setNeedsReanalysis(false)
     }
   }
 
   const handleClear = useCallback(() => {
     setSelectedItems([])
+    setMaxItemsWarning(false)
+    setNeedsReanalysis(false)
     reset()
   }, [reset])
 
   const compatProb = result?.compatibility.compatibility_prob ?? 0
   const isCompatible = result?.compatibility.label === 'Compatible'
-  const maxScore = result
+  const maxScore = useMemo(() => result
     ? Math.max(...result.suggested_items.map((i) => i.score ?? i.compatibility_prob ?? 0), 0.001)
-    : 1
+    : 1, [result])
+
+  const selectedIds = useMemo(() => new Set(selectedItems.map((i) => i.item_id)), [selectedItems])
+
+  const canAnalyze = selectedItems.length >= 2 && !analyzing
 
   return (
-    <div className="max-w-7xl mx-auto px-6 py-8">
-      {/* Page header */}
+    <div className="max-w-7xl mx-auto px-6 py-10 page-enter">
+      {/* Page header — left-aligned */}
       <div className="mb-8">
         <h1
-          className="text-3xl font-bold uppercase tracking-wider mb-1"
+          className="text-3xl font-bold uppercase tracking-tight leading-none section-label"
           style={{ fontFamily: 'var(--font-heading)', color: 'var(--accent)' }}
         >
           Outfit Compatibility
         </h1>
-        <p style={{ color: 'var(--muted)' }} className="text-sm">
+        <p style={{ color: 'var(--muted)' }} className="text-sm mt-1.5">
           Select fashion items to score their compatibility and receive outfit completion suggestions
         </p>
       </div>
 
+      {/* Sticky action bar */}
+      <div
+        className="sticky top-[69px] z-20 py-3 -mx-6 px-6 mb-6 flex items-center gap-4 border-b"
+        style={{
+          backgroundColor: 'var(--glass-bg-heavy)',
+          borderColor: 'var(--border)',
+          backdropFilter: 'blur(12px)',
+        }}
+      >
+        <button
+          onClick={handleAnalyze}
+          disabled={!canAnalyze}
+          className="px-5 py-2.5 rounded-lg font-semibold uppercase tracking-wider text-sm tactile-press"
+          style={{
+            backgroundColor: canAnalyze ? 'var(--accent)' : 'var(--surface2)',
+            color: canAnalyze ? '#fff' : 'var(--muted)',
+            cursor: canAnalyze ? 'pointer' : 'not-allowed',
+            opacity: canAnalyze ? 1 : 0.5,
+            transition: 'all 0.3s var(--ease-out-expo)',
+          }}
+        >
+          {analyzing ? 'Analyzing...' : 'Analyze Compatibility'}
+        </button>
+
+        <span className="text-xs tabular-nums" style={{ color: 'var(--muted)' }}>
+          {selectedItems.length}/{MAX_SELECTED_ITEMS} items selected
+          {selectedItems.length < 2 && ' — select at least 2'}
+        </span>
+
+        {needsReanalysis && !analyzing && (
+          <span
+            className="text-xs px-2.5 py-1 rounded-lg"
+            style={{ backgroundColor: 'rgba(212,165,70,0.12)', color: 'var(--accent)' }}
+          >
+            Items changed — re-analyze to update
+          </span>
+        )}
+
+        {selectedItems.length > 0 && (
+          <button
+            onClick={handleClear}
+            className="ml-auto text-xs"
+            style={{ color: 'var(--muted)', transition: 'color 0.2s' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--status-error)' }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)' }}
+          >
+            Clear all
+          </button>
+        )}
+      </div>
+
+      {error && (
+        <div className="error-banner mb-5">{error}</div>
+      )}
+
+      {/* Max items warning */}
+      {maxItemsWarning && (
+        <div
+          className="px-4 py-2.5 rounded-lg text-xs text-center mb-4"
+          style={{
+            backgroundColor: 'rgba(212,165,70,0.08)',
+            borderLeft: '3px solid var(--accent)',
+            color: 'var(--accent)',
+          }}
+        >
+          Maximum {MAX_SELECTED_ITEMS} items reached. Remove an item to add another.
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-8">
-        {/* ── Left: Item search & selection ── */}
-        <div className="lg:col-span-2 space-y-4">
+        {/* Left: Item search & grid */}
+        <div className="lg:col-span-2 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2 space-y-4 thin-scrollbar">
           {/* Search input */}
           <div>
-            <div
-              className="text-xs font-semibold uppercase tracking-wider mb-2"
+            <label
+              className="text-xs font-semibold uppercase tracking-wider mb-2 block"
               style={{ color: 'var(--accent)' }}
             >
               Search Items
               {total > 0 && (
-                <span
-                  className="ml-2 font-normal normal-case"
-                  style={{ color: 'var(--muted)' }}
-                >
+                <span className="ml-2 font-normal normal-case tabular-nums" style={{ color: 'var(--muted)' }}>
                   ({total.toLocaleString()} total)
                 </span>
               )}
+            </label>
+            <div className="relative">
+              <input
+                type="text"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+                placeholder="Search by item title..."
+                className="w-full px-3 py-2 pr-8 rounded-lg text-sm border outline-none"
+                style={{
+                  backgroundColor: 'var(--surface)',
+                  borderColor: 'var(--border)',
+                  color: 'var(--text)',
+                  transition: 'border-color 0.2s var(--ease-out-expo)',
+                }}
+                onFocus={(e) => {
+                  ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--accent)'
+                }}
+                onBlur={(e) => {
+                  ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--border)'
+                }}
+              />
+              {searchInput && (
+                <button
+                  onClick={() => setSearchInput('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-xs"
+                  style={{ color: 'var(--muted)', transition: 'color 0.15s' }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--text)' }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = 'var(--muted)' }}
+                  aria-label="Clear search"
+                >
+                  <svg width="8" height="8" viewBox="0 0 8 8" fill="none" aria-hidden="true">
+                    <path d="M1 1L7 7M7 1L1 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              )}
             </div>
-            <input
-              type="text"
-              value={searchInput}
-              onChange={(e) => setSearchInput(e.target.value)}
-              placeholder="Search by item title..."
-              className="w-full px-3 py-2 rounded-lg text-sm border outline-none transition-all"
-              style={{
-                backgroundColor: 'var(--surface)',
-                borderColor: 'var(--border)',
-                color: 'var(--text)',
-              }}
-              onFocus={(e) => {
-                ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--accent)'
-              }}
-              onBlur={(e) => {
-                ;(e.currentTarget as HTMLInputElement).style.borderColor = 'var(--border)'
-              }}
-            />
           </div>
 
           {/* Item grid */}
           {itemsLoading ? (
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {Array.from({ length: 12 }).map((_, i) => (
                 <div
                   key={i}
-                  className="rounded-lg animate-pulse"
-                  style={{ backgroundColor: 'var(--surface)', minHeight: '180px' }}
+                  className="rounded-lg skeleton-shimmer"
+                  style={{ minHeight: '140px' }}
                 />
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-2">
-              {items.map((item) => (
-                <ItemCard
-                  key={item.item_id}
-                  item={item}
-                  selected={selectedItems.some((i) => i.item_id === item.item_id)}
-                  onClick={() => handleToggleItem(item)}
-                />
+            <div className="stagger-in grid grid-cols-2 gap-3">
+              {items.map((item, i) => (
+                <div key={item.item_id} style={{ animationDelay: `${Math.min(i * 30, 300)}ms` }}>
+                  <ItemCard
+                    item={item}
+                    selected={selectedIds.has(item.item_id)}
+                    onClick={() => handleToggleItem(item)}
+                  />
+                </div>
               ))}
               {items.length === 0 && (
                 <div
@@ -143,200 +255,122 @@ export default function CompatibilityPage() {
           )}
 
           <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-
-          {/* Selected items */}
-          {selectedItems.length > 0 && (
-            <div
-              className="p-3 rounded-xl border"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
-            >
-              <div className="flex items-center justify-between mb-2">
-                <div
-                  className="text-xs font-semibold uppercase tracking-wider"
-                  style={{ color: 'var(--accent)' }}
-                >
-                  Selected ({selectedItems.length}/8)
-                </div>
-                <button
-                  onClick={handleClear}
-                  className="text-xs transition-colors"
-                  style={{ color: 'var(--muted)' }}
-                >
-                  Clear all
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-1.5">
-                {selectedItems.map((item) => (
-                  <button
-                    key={item.item_id}
-                    onClick={() => handleToggleItem(item)}
-                    className="px-2 py-0.5 rounded-full text-xs border transition-all"
-                    style={{
-                      backgroundColor: 'rgba(200, 169, 110, 0.1)',
-                      borderColor: 'var(--accent)',
-                      color: 'var(--accent)',
-                    }}
-                    title={`Remove: ${item.title}`}
-                  >
-                    #{item.item_id} ×
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Analyze button */}
-          <button
-            onClick={handleAnalyze}
-            disabled={selectedItems.length < 1 || analyzing}
-            className="w-full px-4 py-3 rounded-lg font-semibold uppercase tracking-wider text-sm transition-all"
-            style={{
-              backgroundColor:
-                selectedItems.length >= 1 && !analyzing ? 'var(--accent)' : 'var(--surface2)',
-              color:
-                selectedItems.length >= 1 && !analyzing ? '#0a0a0a' : 'var(--muted)',
-              cursor: selectedItems.length >= 1 && !analyzing ? 'pointer' : 'not-allowed',
-              opacity: selectedItems.length >= 1 && !analyzing ? 1 : 0.6,
-            }}
-          >
-            {analyzing ? '🔄 Analyzing...' : '✨ Analyze Compatibility'}
-          </button>
-
-          {selectedItems.length < 1 && (
-            <p className="text-xs text-center" style={{ color: 'var(--muted)' }}>
-              Select at least 1 item to begin analysis
-            </p>
-          )}
         </div>
 
-        {/* ── Right: Selected Items (persistent) + Analysis Results ── */}
-        <div className="lg:col-span-3 space-y-6">
-          {error && (
-            <div
-              className="p-4 rounded-lg text-sm"
-              style={{
-                backgroundColor: 'rgba(232, 124, 124, 0.1)',
-                borderLeft: '3px solid #e87c7c',
-                color: '#e87c7c',
-              }}
-            >
-              {error}
-            </div>
-          )}
-
-          {/* SECTION 1: Selected Items (always visible when items selected) */}
+        {/* Right: Selected Items Preview + Analysis Results */}
+        <div className="lg:col-span-3 lg:sticky lg:top-28 lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto lg:pr-2 space-y-5 thin-scrollbar">
+          {/* Selected Items Preview */}
           {selectedItems.length > 0 && (
             <SelectedItemsPreview items={selectedItems} onRemoveItem={handleToggleItem} />
           )}
 
-          {/* SECTION 2: Analysis Results or Idle Placeholder */}
-          {/* Show idle placeholder when no items selected and no analysis */}
+          {/* Idle: no items, no result */}
           {selectedItems.length === 0 && !result && !analyzing && (
             <div
-              className="p-16 rounded-xl text-center"
+              className="py-14 rounded-lg text-center"
               style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
             >
-              <div className="text-5xl mb-4">👗</div>
               <div className="text-sm">
                 Select items from the left panel, then click &ldquo;Analyze Compatibility&rdquo;
               </div>
             </div>
           )}
 
-          {/* Show idle/prompt when items selected but no analysis yet */}
+          {/* Prompt: items selected but no analysis yet */}
           {selectedItems.length > 0 && !result && !analyzing && (
             <div
-              className="p-12 rounded-xl text-center"
-              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)', borderWidth: '1px' }}
+              className="py-8 rounded-lg text-center border"
+              style={{ backgroundColor: 'var(--surface)', borderColor: 'var(--border)' }}
             >
               <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                Click &ldquo;Analyze Compatibility&rdquo; to score this outfit
+                {selectedItems.length < 2
+                  ? 'Select at least 2 items to analyze compatibility'
+                  : 'Click "Analyze Compatibility" to score this outfit'}
               </div>
             </div>
           )}
 
-          {/* Show loading state */}
+          {/* Loading */}
           {analyzing && (
-            <div
-              className="p-16 rounded-xl text-center"
-              style={{ backgroundColor: 'var(--surface)', color: 'var(--muted)' }}
-            >
-              <div className="text-5xl mb-4 animate-pulse">🔄</div>
-              <div className="text-sm">Analyzing outfit compatibility…</div>
+            <div className="space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg skeleton-shimmer"
+                  style={{ minHeight: '80px' }}
+                />
+              ))}
             </div>
           )}
 
-          {/* Show analysis results */}
+          {/* Analysis results */}
           {result && !analyzing && (
             <>
-              {/* Compatibility score card */}
+              {/* Compatibility score */}
               <div
-                className="p-6 rounded-xl border"
+                className="p-5 rounded-lg border"
                 style={{
+                  borderColor: isCompatible ? 'var(--status-success)' : 'var(--status-error)',
                   backgroundColor: 'var(--surface)',
-                  borderColor: isCompatible ? '#5a8a6e' : '#e87c7c',
+                  opacity: needsReanalysis ? 0.5 : 1,
+                  transition: 'opacity 0.3s var(--ease-out-expo)',
                 }}
               >
                 <div
-                  className="text-xs font-semibold uppercase tracking-wider mb-4"
+                  className="text-[11px] font-semibold uppercase tracking-wider mb-3"
                   style={{ color: 'var(--muted)' }}
                 >
                   Compatibility Analysis
                 </div>
 
-                <div className="flex items-center gap-6">
+                <div className="flex items-center gap-5">
                   {/* Circular gauge */}
                   <div
-                    className="w-24 h-24 rounded-full flex flex-col items-center justify-center border-4 shrink-0"
+                    className="w-20 h-20 rounded-full flex flex-col items-center justify-center border-[3px] shrink-0"
                     style={{
-                      borderColor: isCompatible ? '#5a8a6e' : '#e87c7c',
+                      borderColor: isCompatible ? 'var(--status-success)' : 'var(--status-error)',
                       backgroundColor: isCompatible
-                        ? 'rgba(90, 138, 110, 0.06)'
-                        : 'rgba(232, 124, 124, 0.06)',
+                        ? 'rgba(90, 138, 110, 0.05)'
+                        : 'rgba(232, 124, 124, 0.05)',
                     }}
                   >
                     <span
-                      className="text-xl font-bold tabular-nums"
-                      style={{ color: isCompatible ? '#5a8a6e' : '#e87c7c' }}
+                      className="text-lg font-bold tabular-nums"
+                      style={{ color: isCompatible ? 'var(--status-success)' : 'var(--status-error)' }}
                     >
                       {(compatProb * 100).toFixed(0)}%
                     </span>
                   </div>
 
-                  {/* Label & details */}
+                  {/* Label */}
                   <div className="flex-1">
                     <div
-                      className="text-2xl font-bold mb-1"
+                      className="text-xl font-bold leading-none"
                       style={{
                         fontFamily: 'var(--font-heading)',
-                        color: isCompatible ? '#5a8a6e' : '#e87c7c',
+                        color: isCompatible ? 'var(--status-success)' : 'var(--status-error)',
                       }}
                     >
                       {result.compatibility.label}
                     </div>
-                    <div className="text-sm" style={{ color: 'var(--muted)' }}>
-                      Raw logit:{' '}
-                      <span style={{ color: 'var(--text)' }}>
-                        {result.compatibility.raw_score.toFixed(4)}
-                      </span>
-                    </div>
-                    <div className="text-xs mt-1" style={{ color: 'var(--muted)' }}>
+                    <div className="text-xs mt-1.5 tabular-nums" style={{ color: 'var(--muted)' }}>
                       {result.compatibility.valid_items.length} item
                       {result.compatibility.valid_items.length !== 1 ? 's' : ''} evaluated
                     </div>
                   </div>
                 </div>
 
-                {/* Progress bar */}
+                {/* Animated progress bar */}
                 <div
-                  className="mt-5 w-full h-2.5 rounded-full overflow-hidden"
+                  className="mt-4 w-full h-2 rounded-full overflow-hidden"
                   style={{ backgroundColor: 'var(--surface2)' }}
                 >
                   <div
-                    className="h-full rounded-full transition-all duration-700"
+                    className="h-full rounded-full"
                     style={{
-                      width: `${compatProb * 100}%`,
-                      backgroundColor: isCompatible ? '#5a8a6e' : '#e87c7c',
+                      width: scoreAnimated ? `${compatProb * 100}%` : '0%',
+                      backgroundColor: isCompatible ? 'var(--status-success)' : 'var(--status-error)',
+                      transition: 'width 700ms cubic-bezier(0.4, 0, 0.2, 1)',
                     }}
                   />
                 </div>
@@ -344,21 +378,22 @@ export default function CompatibilityPage() {
 
               {/* Suggested items */}
               {result.suggested_items.length > 0 && (
-                <div>
+                <div style={{ opacity: needsReanalysis ? 0.5 : 1, transition: 'opacity 0.3s var(--ease-out-expo)' }}>
                   <div
                     className="text-xs font-semibold uppercase tracking-wider mb-3"
                     style={{ color: 'var(--accent)' }}
                   >
                     Suggested Items to Complete Outfit
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="stagger-in grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {result.suggested_items.map((item, idx) => (
-                      <FitbResultItem
-                        key={item.item_id}
-                        item={item}
-                        rank={idx + 1}
-                        maxScore={maxScore}
-                      />
+                      <div key={item.item_id} style={{ animationDelay: `${idx * 60}ms` }}>
+                        <FitbResultItem
+                          item={item}
+                          rank={idx + 1}
+                          maxScore={maxScore}
+                        />
+                      </div>
                     ))}
                   </div>
                 </div>

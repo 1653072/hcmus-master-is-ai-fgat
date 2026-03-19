@@ -35,11 +35,6 @@ export function getCategoryColor(categoryId: number): string {
 }
 
 /**
- * Legacy string-key map kept for backward compat (unused in new code)
- */
-export const CAT_COLORS: Record<string, string> = {}
-
-/**
  * Backend API base URL prefix used in all fetch calls.
  * next.config.ts rewrites /api/* → BE_URL/*.
  */
