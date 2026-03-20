@@ -16,7 +16,7 @@ interface UserDetailModalProps {
 export default function UserDetailModal({ user, onClose }: UserDetailModalProps) {
   const [activeSubTab, setActiveSubTab] = useState<SubTab>('history')
 
-  const { history, loading: historyLoading, error: historyError } = useHistory(user.user_id)
+  const { history, loading: historyLoading, loadingMore, error: historyError, hasMore, loadMore } = useHistory(user.user_id)
   const { recommendations, loading: recommendLoading, error: recommendError } =
     useRecommend(user.user_id)
 
@@ -114,7 +114,7 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
                 {
                   tab: 'history' as SubTab,
                   label: 'Interaction History',
-                  count: historyLoading ? null : historyOutfits.length,
+                  count: user.outfit_count,
                 },
                 {
                   tab: 'recommend' as SubTab,
@@ -171,6 +171,23 @@ export default function UserDetailModal({ user, onClose }: UserDetailModalProps)
                 loading={historyLoading}
                 emptyMessage="No interaction history for this user"
               />
+              {hasMore && (
+                <div className="mt-5 flex justify-center">
+                  <button
+                    onClick={loadMore}
+                    disabled={loadingMore}
+                    className="px-5 py-2 rounded-xl text-xs font-semibold tactile-press"
+                    style={{
+                      backgroundColor: 'var(--surface)',
+                      color: loadingMore ? 'var(--muted)' : 'var(--accent)',
+                      border: '1px solid var(--border)',
+                      transition: 'all 0.2s var(--ease-out-expo)',
+                    }}
+                  >
+                    {loadingMore ? 'Loading…' : `Load more (${historyOutfits.length} / ${user.outfit_count})`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
 
