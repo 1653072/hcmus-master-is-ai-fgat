@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import type { Item } from '@/lib/types'
-import { getCategoryColor } from '@/lib/constants'
 
 interface ItemCardProps {
   item: Item
@@ -12,7 +11,6 @@ interface ItemCardProps {
 
 export default function ItemCard({ item, selected, onClick }: ItemCardProps) {
   const [imgError, setImgError] = useState(false)
-  const color = getCategoryColor(item.category)
 
   return (
     <div
@@ -73,7 +71,7 @@ export default function ItemCard({ item, selected, onClick }: ItemCardProps) {
         <div className="flex items-start justify-between gap-1.5 mb-1">
           <span
             className="text-xs font-semibold px-1.5 py-0.5 rounded"
-            style={{ backgroundColor: `${color}1a`, color }}
+            style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
           >
             <abbr title="Category" style={{ textDecoration: 'none' }}></abbr>{item.category}
           </span>

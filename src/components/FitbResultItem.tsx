@@ -2,28 +2,47 @@
 
 import { useState } from 'react'
 import type { Item } from '@/lib/types'
-import { getCategoryColor } from '@/lib/constants'
 
 interface FitbResultItemProps {
   item: Item
   rank: number
   maxScore: number
+  selected?: boolean
+  onClick?: () => void
 }
 
-export default function FitbResultItem({ item, rank, maxScore }: FitbResultItemProps) {
+export default function FitbResultItem({ item, rank, maxScore, selected = false, onClick }: FitbResultItemProps) {
   const [imgError, setImgError] = useState(false)
-  const chipColor = getCategoryColor(item.category)
   const scoreVal = item.score ?? item.compatibility_prob ?? 0
   const scorePercentage = Math.min((scoreVal / Math.max(maxScore, 0.001)) * 100, 100)
   const isTopThree = rank <= 3
 
   return (
     <div
-      className="rounded-xl border overflow-hidden"
+      onClick={onClick}
+      className="relative rounded-xl border overflow-hidden"
       style={{
-        backgroundColor: 'var(--surface)',
-        borderColor: 'var(--border)',
-        boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.03)',
+        backgroundColor: selected ? 'rgba(212,165,70,0.1)' : 'var(--surface)',
+        borderColor: selected ? 'var(--accent)' : 'var(--border)',
+        cursor: onClick ? 'pointer' : 'default',
+        boxShadow: selected
+          ? 'inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 10px rgba(212,165,70,0.25)'
+          : 'inset 0 1px 0 rgba(255,255,255,0.03)',
+        transition: 'all 0.3s var(--ease-out-expo)',
+      }}
+      onMouseEnter={(e) => {
+        if (onClick && !selected) {
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--accent2)'
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'translateY(-2px)'
+          ;(e.currentTarget as HTMLDivElement).style.boxShadow = '0 4px 14px rgba(0,0,0,0.35)'
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (onClick && !selected) {
+          ;(e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'
+          ;(e.currentTarget as HTMLDivElement).style.transform = 'none'
+          ;(e.currentTarget as HTMLDivElement).style.boxShadow = 'inset 0 1px 0 rgba(255,255,255,0.03)'
+        }
       }}
     >
       {/* Optional image */}
@@ -56,8 +75,8 @@ export default function FitbResultItem({ item, rank, maxScore }: FitbResultItemP
           </div>
           <div className="flex-1 min-w-0">
             <span
-              className="text-[11px] font-semibold uppercase tracking-wider inline-block"
-              style={{ color: chipColor }}
+              className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded inline-block"
+              style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
             >
               <abbr title="Category" style={{ textDecoration: 'none' }}></abbr>{item.category}
             </span>
@@ -97,6 +116,18 @@ export default function FitbResultItem({ item, rank, maxScore }: FitbResultItemP
           </div>
         )}
       </div>
+
+      {/* Selected indicator */}
+      {selected && (
+        <div
+          className="absolute top-2 right-2 w-5 h-5 rounded-full flex items-center justify-center font-bold"
+          style={{ backgroundColor: 'var(--accent)', color: '#fff' }}
+        >
+          <svg width="8" height="7" viewBox="0 0 10 8" fill="none" aria-hidden="true">
+            <path d="M1 4L3.5 6.5L9 1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </div>
+      )}
     </div>
   )
 }

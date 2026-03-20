@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import type { Item } from '@/lib/types'
-import { getCategoryColor, MAX_SELECTED_ITEMS } from '@/lib/constants'
+import { MAX_SELECTED_ITEMS } from '@/lib/constants'
 
 interface SelectedItemsPreviewProps {
   items: Item[]
@@ -33,7 +33,6 @@ export default function SelectedItemsPreview({ items, onRemoveItem }: SelectedIt
       <div className="grid grid-cols-4 gap-3">
         {items.map((item) => {
           const hasError = imgErrors.has(item.item_id)
-          const color = getCategoryColor(item.category)
 
           return (
             <div
@@ -102,7 +101,7 @@ export default function SelectedItemsPreview({ items, onRemoveItem }: SelectedIt
 
                 <span
                   className="text-[10px] px-1.5 rounded inline-block w-fit mt-1"
-                  style={{ backgroundColor: `${color}1a`, color }}
+                  style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
                 >
                   <abbr title="Category" style={{ textDecoration: 'none' }}></abbr>{item.category}
                 </span>

@@ -2,7 +2,6 @@
 
 import { useState } from 'react'
 import type { Outfit } from '@/lib/types'
-import { getCategoryColor } from '@/lib/constants'
 
 interface OutfitCardProps {
   outfit: Outfit
@@ -26,8 +25,9 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
     })
   }
 
-  const hasMore = outfit.items.length > 3
-  const visibleItems = expanded ? outfit.items : outfit.items.slice(0, 3)
+  const hasMore = outfit.items.length > 4
+  const visibleItems = expanded ? outfit.items : outfit.items.slice(0, hasMore ? 3 : 4)
+  const moreCount = outfit.items.length - 3
 
   return (
     <div
@@ -120,7 +120,6 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
         <div className="px-3 pb-2 grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(2, visibleItems.length)}, 1fr)` }}>
           {visibleItems.map((item) => {
             const hasError = imgErrors.has(item.item_id)
-            const catColor = getCategoryColor(item.category)
             return (
               <div
                 key={item.item_id}
@@ -159,7 +158,7 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
                   </p>
                   <span
                     className="text-[10px] px-1.5 rounded mt-0.5 inline-block"
-                    style={{ backgroundColor: `${catColor}18`, color: catColor }}
+                    style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
                   >
                     {item.category}
                   </span>
@@ -167,34 +166,44 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
               </div>
             )
           })}
-          {hasMore && !expanded && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                setExpanded(true)
-              }}
-              className="rounded-md flex items-center justify-center text-xs font-medium"
-              style={{
-                backgroundColor: 'var(--surface2)',
-                color: 'var(--accent)',
-                minHeight: '96px',
-                cursor: 'pointer',
-                transition: 'color 0.2s',
-              }}
-            >
-              +{outfit.items.length - 3} more
-            </button>
-          )}
+
+          {/* Dim slot — shown when collapsed and hasMore */}
+          {hasMore && !expanded && (() => {
+            const moreItem = outfit.items[3]
+            const hasError = imgErrors.has(moreItem.item_id)
+            return (
+              <div
+                key="more-slot"
+                className="relative rounded-md overflow-hidden"
+                style={{ backgroundColor: 'var(--surface2)', minHeight: '96px', cursor: 'pointer' }}
+                onClick={(e) => { e.stopPropagation(); setExpanded(true) }}
+              >
+                {moreItem.image_url && !hasError ? (
+                  <img
+                    src={moreItem.image_url}
+                    alt=""
+                    className="absolute inset-0 w-full h-full object-contain p-1"
+                    onError={() => handleImageError(moreItem.item_id)}
+                  />
+                ) : null}
+                <div
+                  className="absolute inset-0 flex items-center justify-center"
+                  style={{ backgroundColor: 'rgba(0,0,0,0.62)' }}
+                >
+                  <span className="text-sm font-bold" style={{ color: '#fff' }}>
+                    +{moreCount}
+                  </span>
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 
-      {/* Collapse button */}
+      {/* Show less */}
       {hasMore && expanded && (
         <button
-          onClick={(e) => {
-            e.stopPropagation()
-            setExpanded(false)
-          }}
+          onClick={(e) => { e.stopPropagation(); setExpanded(false) }}
           className="pb-2 text-xs font-medium self-center"
           style={{ color: 'var(--accent)', cursor: 'pointer' }}
         >
@@ -202,27 +211,21 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
         </button>
       )}
 
-      {/* Category chips — bottom divider line */}
+      {/* Category chips */}
       <div
         className="px-5 py-3 flex flex-wrap gap-2 border-t"
         style={{ borderColor: 'var(--border)' }}
       >
-        {outfit.items.map((item) => {
-          const color = getCategoryColor(item.category)
-          return (
-            <span
-              key={item.item_id}
-              className="px-2 py-0.5 rounded-full text-[10px]"
-              style={{
-                backgroundColor: `${color}14`,
-                color,
-              }}
-              title={item.title}
-            >
-              {item.category}
-            </span>
-          )
-        })}
+        {outfit.items.map((item) => (
+          <span
+            key={item.item_id}
+            className="px-2 py-0.5 rounded text-[10px]"
+            style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
+            title={item.title}
+          >
+            {item.category}
+          </span>
+        ))}
       </div>
     </div>
   )

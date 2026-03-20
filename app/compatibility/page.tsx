@@ -392,6 +392,8 @@ export default function CompatibilityPage() {
                           item={item}
                           rank={idx + 1}
                           maxScore={maxScore}
+                          selected={selectedIds.has(item.item_id)}
+                          onClick={() => handleToggleItem(item)}
                         />
                       </div>
                     ))}
