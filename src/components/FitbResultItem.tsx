@@ -75,8 +75,8 @@ export default function FitbResultItem({ item, rank, maxScore, selected = false,
           </div>
           <div className="flex-1 min-w-0">
             <span
-              className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded inline-block"
-              style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
+              className="text-[11px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full inline-block"
+              style={{ backgroundColor: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
             >
               <abbr title="Category" style={{ textDecoration: 'none' }}></abbr>{item.category}
             </span>

@@ -70,8 +70,8 @@ export default function ItemCard({ item, selected, onClick }: ItemCardProps) {
       <div className="px-3.5 py-2.5">
         <div className="flex items-start justify-between gap-1.5 mb-1">
           <span
-            className="text-xs font-semibold px-1.5 py-0.5 rounded"
-            style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
+            className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+            style={{ backgroundColor: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
           >
             <abbr title="Category" style={{ textDecoration: 'none' }}></abbr>{item.category}
           </span>

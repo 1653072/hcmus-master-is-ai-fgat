@@ -157,8 +157,8 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
                     {item.title}
                   </p>
                   <span
-                    className="text-[10px] px-1.5 rounded mt-0.5 inline-block"
-                    style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
+                    className="text-[10px] px-1.5 rounded-full mt-0.5 inline-block"
+                    style={{ backgroundColor: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
                   >
                     {item.category}
                   </span>
@@ -219,8 +219,8 @@ export default function OutfitCard({ outfit, showScore, showImages = true, selec
         {outfit.items.map((item) => (
           <span
             key={item.item_id}
-            className="px-2 py-0.5 rounded text-[10px]"
-            style={{ backgroundColor: '#fff', color: '#000', border: '1px solid var(--border)' }}
+            className="px-2 py-0.5 rounded-full text-[10px]"
+            style={{ backgroundColor: 'var(--bg)', color: 'var(--accent)', border: '1px solid var(--accent)' }}
             title={item.title}
           >
             {item.category}
